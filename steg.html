@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Steganography</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: black;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0, 255, 0, 0.5);
+            width: 400px;
+            text-align: center;
+            color: #0f0;
+        }
+        input, button {
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 12px;
+            border-radius: 25px;
+            border: none;
+            font-size: 16px;
+        }
+        input {
+            background: #1a1a1a;
+            color: #0f0;
+            outline: none;
+        }
+        button {
+            background: #0f0;
+            color: black;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(0, 255, 0, 0.8);
+        }
+        #outputMessage {
+            display: block;
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 255, 0, 0.5);
+            margin-top: 10px;
+            color: #0f0;
+        }
+        .upload-btn-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        .btn {
+            border: 2px solid gray;
+            color: gray;
+            background-color: white;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .upload-status {
+            margin-top: 10px;
+            color: #0f0;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+        }
+        .upload-btn-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Encrypt Message into Image</h2>
+        <div class="upload-btn-wrapper">
+            <button class="button">Upload a Picture</button>
+            <input type="file" name="myfile" id="imageInput" accept="image/*" onchange="handleFileUpload()"/>
+        </div>
+        <div id="uploadStatus" class="upload-status"></div>
+        <input type="text" id="message" placeholder="Enter secret message">
+        <button onclick="encryptMessage()">Encrypt & Download</button>
+        <hr>
+        <h2>Decrypt Message from Image</h2>
+        <div class="upload-btn-wrapper">
+            <button class="button">Upload a encrypted Picture</button>
+            <input type="file" name="myfile" id="encryptedImageInput" accept="image/*" onchange="handleFileUpload()"/>
+        </div>
+        <div id="uploadStatusd" class="upload-status"></div>
+        <button onclick="decryptMessage()">Decrypt</button>
+        <p><strong>Decrypted Message:</strong></p>
+        <span id="outputMessage"></span>
+    </div>
+    <canvas id="canvas" style="display: none;"></canvas>
+    <script>
+        function handleFileUpload() {
+            const fileInput = document.getElementById('imageInput');
+            const fileInputd = document.getElementById('encryptedImageInput');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const uploadStatusd = document.getElementById('uploadStatusd');
+            const file = fileInput.files[0];
+            const fd = fileInputd.files[0];
+
+            if (file) {
+                const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+                if (validTypes.includes(file.type) && file.size <= 5 * 1024 * 1024) { // 5MB limit
+                    uploadStatus.textContent = `File uploaded: ${file.name}`;
+                    uploadStatus.classList.remove('error');
+                } else {
+                    uploadStatus.textContent = 'Not supported';
+                    uploadStatus.classList.add('error');
+                }
+            }else if(fd){
+                    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+                    if (validTypes.includes(fd.type) && fd.size <= 5 * 1024 * 1024) { // 5MB limit
+                        uploadStatusd.textContent = `File uploaded: ${fd.name}`;
+                        uploadStatusd.classList.remove('error');
+                    } else {
+                    uploadStatusd.textContent = 'Not supported';
+                    uploadStatusd.classList.add('error');
+                }
+            } 
+            else {
+                uploadStatus.textContent = '';
+                uploadStatusd.textContent = '';
+            }
+        }
+
+        function encryptMessage() {
+            let file = document.getElementById('imageInput').files[0];
+            let message = document.getElementById('message').value;
+            let canvas = document.getElementById('canvas');
+            let ctx = canvas.getContext('2d');
+            
+            if (!file || !message) {
+                alert("Please select an image and enter a message.");
+                return;
+            }
+            
+            let reader = new FileReader();
+            reader.onload = function(event) {
+                let img = new Image();
+                img.onload = function() {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    let data = imgData.data;
+                    
+                    for (let i = 0; i < message.length && i * 4 < data.length; i++) {
+                        data[i * 4] = message.charCodeAt(i);
+                    }
+                    data[message.length * 4] = 0; // Mark end of message
+                    ctx.putImageData(imgData, 0, 0);
+                    let link = document.createElement('a');
+                    link.download = 'encryptedImage.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function decryptMessage() {
+            let file = document.getElementById('encryptedImageInput').files[0];
+            let canvas = document.getElementById('canvas');
+            let ctx = canvas.getContext('2d');
+            
+            if (!file) {
+                alert("Please select an encrypted image.");
+                return;
+            }
+            
+            let reader = new FileReader();
+            reader.onload = function(event) {
+                let img = new Image();
+                img.onload = function() {
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    let data = imgData.data;
+                    let message = "";
+                    
+                    for (let i = 0; i < data.length; i += 4) {
+                        if (data[i] === 0) break;
+                        message += String.fromCharCode(data[i]);
+                    }
+                    document.getElementById('outputMessage').innerText = message;
+                };
+                img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    </script>
+</body>
+</html>
