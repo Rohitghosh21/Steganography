@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Steganography</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .card {
+            background: black;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0, 255, 0, 0.5);
+            width: 400px;
+            text-align: center;
+            color: #0f0;
+        }
+        input, button {
+            display: block;
+            width: 100%;
+            margin: 10px 0;
+            padding: 12px;
+            border-radius: 25px;
+            border: none;
+            font-size: 16px;
+        }
+        input {
+            background: #1a1a1a;
+            color: #0f0;
+            outline: none;
+        }
+        button {
+            background: #0f0;
+            color: black;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(0, 255, 0, 0.8);
+        }
+        #outputMessage {
+            display: block;
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 255, 0, 0.5);
+            margin-top: 10px;
+            color: #0f0;
+        }
+        .upload-btn-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+        .btn {
+            border: 2px solid gray;
+            color: gray;
+            background-color: white;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        .upload-status {
+            margin-top: 10px;
+            color: #0f0;
+            font-weight: bold;
+        }
+        .error {
+            color: red;
+        }
+        .upload-btn-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Encrypt Message into Image</h2>
+        <div class="upload-btn-wrapper">
+            <button class="button">Upload a Picture</button>
+            <input type="file" name="myfile" id="imageInput" accept="image/*" onchange="handleFileUpload()"/>
+        </div>
+        <div id="uploadStatus" class="upload-status"></div>
+        <input type="text" id="message" placeholder="Enter secret message">
+        <button id="encryptButton">Encrypt & Download</button>
+        <hr>
+        <h2>Decrypt Message from Image</h2>
+        <div class="upload-btn-wrapper">
+            <button class="button">Upload an encrypted Picture</button>
+            <input type="file" name="myfile" id="encryptedImageInput" accept="image/*" onchange="handleFileUpload()"/>
+        </div>
+        <div id="uploadStatusd" class="upload-status"></div>
+        <button id="decryptButton">Decrypt</button>
+        <p><strong>Decrypted Message:</strong></p>
+        <span id="outputMessage"></span>
+    </div>
+    <script>
+        function handleFileUpload() {
+            const fileInput = document.getElementById('imageInput');
+            const fileInputd = document.getElementById('encryptedImageInput');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const uploadStatusd = document.getElementById('uploadStatusd');
+            const file = fileInput.files[0];
+            const fd = fileInputd.files[0];
+
+            if (file) {
+                const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+                if (validTypes.includes(file.type) && file.size <= 5 * 1024 * 1024) { // 5MB limit
+                    uploadStatus.textContent = `File uploaded: ${file.name}`;
+                    uploadStatus.classList.remove('error');
+                } else {
+                    uploadStatus.textContent = 'Not supported';
+                    uploadStatus.classList.add('error');
+                }
+            } else if (fd) {
+                const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
+                if (validTypes.includes(fd.type) && fd.size <= 5 * 1024 * 1024) { // 5MB limit
+                    uploadStatusd.textContent = `File uploaded: ${fd.name}`;
+                    uploadStatusd.classList.remove('error');
+                } else {
+                    uploadStatusd.textContent = 'Not supported';
+                    uploadStatusd.classList.add('error');
+                }
+            } else {
+                uploadStatus.textContent = '';
+                uploadStatusd.textContent = '';
+            }
+        }
+
+        async function encryptMessage() {
+            const fileInput = document.getElementById('imageInput');
+            const messageInput = document.getElementById('message');
+            const file = fileInput.files[0];
+            const message = messageInput.value;
+
+            if (!file || !message) {
+                alert("Please select an image and enter a message.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('message', message);
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/encrypt', {
+                    method: 'POST',
+                    body: formData,
+                });
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'encrypted_image.png';
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    alert('Encryption failed. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred during encryption.');
+            }
+        }
+        document.getElementById('encryptButton').addEventListener('click', function(event) {
+    event.preventDefault(); 
+    encryptMessage();        
+});
+
+        async function decryptMessage() {
+    const fileInput = document.getElementById('encryptedImageInput');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert("Please select an encrypted image.");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+        const response = await fetch('http://127.0.0.1:5000/decrypt', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Decrypted message:', result.message);
+
+            const outputElement = document.getElementById('outputMessage');
+            outputElement.innerText = result.message;
+
+        } else {
+            document.getElementById('outputMessage').innerText = "Decryption failed. Try again.";
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('outputMessage').innerText = "An error occurred during decryption.";
+    }
+}
+document.getElementById('decryptButton').addEventListener('click', function(event) {
+    event.preventDefault(); 
+    decryptMessage();        
+});
+window.addEventListener('beforeunload', function(event) {
+    event.preventDefault();
+    event.returnValue = ''; 
+});
+    </script>
+</body>
+</html>
